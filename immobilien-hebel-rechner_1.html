@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Immobilien-Hebelmodell – Portfolio-Rechner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0e0f0c;
+    --surface: #141510;
+    --surface2: #1a1b16;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #e8e5d8;
+    --muted: #7a7869;
+    --accent: #c8f04a;
+    --accent2: #4af0c8;
+    --danger: #f04a4a;
+    --amber: #f0c84a;
+    --mono: 'DM Mono', monospace;
+    --serif: 'Fraunces', serif;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid bg */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(200,240,74,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(200,240,74,.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 24px 80px; }
+
+  /* HERO */
+  .hero {
+    padding: 64px 0 40px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 40px;
+  }
+  .hero-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hero-tag::before { content: ''; display: block; width: 24px; height: 1px; background: var(--accent); }
+  .hero h1 {
+    font-family: var(--serif);
+    font-size: clamp(32px, 5vw, 56px);
+    font-weight: 300;
+    line-height: 1.1;
+    letter-spacing: -.02em;
+    color: var(--text);
+    margin-bottom: 12px;
+  }
+  .hero h1 em { font-style: italic; color: var(--accent); }
+  .hero-sub {
+    font-size: 15px;
+    color: var(--muted);
+    max-width: 560px;
+    font-weight: 300;
+  }
+
+  /* MAIN LAYOUT */
+  .layout { display: grid; grid-template-columns: 320px 1fr; gap: 24px; align-items: start; }
+  @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+
+  /* PANELS */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .panel-head {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel-head-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .panel-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .panel-body { padding: 20px; }
+
+  /* SLIDERS */
+  .param-group { margin-bottom: 18px; }
+  .param-group:last-child { margin-bottom: 0; }
+  .param-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+  }
+  .param-name {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .param-value {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+    font-weight: 500;
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 2px;
+    background: var(--border2);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 0 1px var(--accent);
+    transition: transform .15s;
+  }
+  input[type=range]:hover::-webkit-slider-thumb { transform: scale(1.2); }
+
+  /* METRICS */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .metric-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .metric-card.accent { border-color: rgba(200,240,74,.25); background: rgba(200,240,74,.04); }
+  .metric-card.danger { border-color: rgba(240,74,74,.2); background: rgba(240,74,74,.04); }
+  .mc-label {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 4px;
+    font-family: var(--mono);
+    letter-spacing: .05em;
+  }
+  .mc-value {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .mc-value.green { color: var(--accent2); }
+  .mc-value.amber { color: var(--amber); }
+  .mc-value.red   { color: var(--danger); }
+
+  /* FLOW */
+  .flow {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    margin-bottom: 24px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .flow-step {
+    flex: 1 0 0;
+    min-width: 110px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-right: none;
+    padding: 12px;
+    position: relative;
+  }
+  .flow-step:first-child { border-radius: 8px 0 0 8px; }
+  .flow-step:last-child  { border-radius: 0 8px 8px 0; border-right: 1px solid var(--border); }
+  .flow-step.hi {
+    border-color: rgba(200,240,74,.3);
+    background: rgba(200,240,74,.06);
+  }
+  .flow-step::after {
+    content: '›';
+    position: absolute;
+    right: -10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    color: var(--muted);
+    z-index: 2;
+    background: var(--surface2);
+    line-height: 1;
+  }
+  .flow-step.hi::after { color: var(--accent); }
+  .flow-step:last-child::after { display: none; }
+  .fs-title {
+    font-size: 10px;
+    font-family: var(--mono);
+    color: var(--muted);
+    letter-spacing: .05em;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+  .fs-line {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .fs-line strong { color: var(--text); font-weight: 500; }
+  .fs-line.pos strong { color: var(--accent2); }
+  .fs-line.neg strong { color: var(--danger); }
+  .fs-line.acc strong { color: var(--accent); }
+
+  /* TABLE */
+  .table-wrap { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  th {
+    text-align: right;
+    padding: 8px 10px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    font-weight: 400;
+    letter-spacing: .05em;
+    white-space: nowrap;
+  }
+  th:first-child { text-align: left; }
+  td {
+    text-align: right;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    white-space: nowrap;
+  }
+  td:first-child { text-align: left; }
+  tr.be td { background: rgba(200,240,74,.07); }
+  tr.be td:first-child { color: var(--accent); }
+  tr:last-child td { border-bottom: none; }
+  .be-badge {
+    display: inline-block;
+    background: var(--accent);
+    color: #0e0f0c;
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: .08em;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  /* CHART */
+  .chart-legend {
+    display: flex;
+    gap: 18px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .cl-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--muted);
+  }
+  .cl-dot {
+    width: 10px; height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  /* SECTION TITLE */
+  .section-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* BESTAND */
+  .bestand-section { margin-bottom: 40px; }
+  .bestand-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .bestand-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+  .bestand-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: grid;
+    grid-template-columns: 28px 1fr 1fr 1fr 1fr 1fr 1fr 32px;
+    gap: 10px;
+    align-items: center;
+  }
+  .bestand-item.header-row {
+    background: transparent;
+    border-color: transparent;
+    padding: 0 16px;
+    margin-bottom: -4px;
+  }
+  .bestand-item.header-row span {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .bestand-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+  }
+  .bi-field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .bi-label {
+    font-size: 9px;
+    font-family: var(--mono);
+    color: var(--muted);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .bi-input {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 6px 8px;
+    width: 100%;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .bi-input:focus { border-color: var(--accent); }
+  .bi-input::placeholder { color: var(--muted); }
+  .btn-remove {
+    background: none;
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 14px;
+    width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color .15s, color .15s;
+    flex-shrink: 0;
+  }
+  .btn-remove:hover { border-color: var(--danger); color: var(--danger); }
+  .btn-add {
+    background: none;
+    border: 1px dashed var(--border2);
+    border-radius: 8px;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .06em;
+    padding: 10px 16px;
+    width: 100%;
+    text-align: left;
+    transition: border-color .15s, color .15s;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .btn-add:hover { border-color: var(--accent); color: var(--accent); }
+  .bestand-summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 14px;
+  }
+  @media (max-width: 700px) {
+    .bestand-item { grid-template-columns: 1fr 1fr; }
+    .bestand-item.header-row { display: none; }
+    .bestand-num { display: none; }
+    .bestand-summary { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* FOOTER NOTE */
+  .footnote {
+    margin-top: 40px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+    line-height: 1.8;
+  }
+  .footnote strong { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="hero">
+    <div class="hero-tag">Immobilien-Hebel-Modell</div>
+    <h1>Portfolio-<em>Wachstum</em><br>durch Fremdkapital</h1>
+    <p class="hero-sub">Interaktiver Rechner: Von der ersten Wohnung zum selbsttragenden Portfolio. Wann kauft das System sich selbst?</p>
+  </div>
+
+  <!-- BESTAND -->
+  <div class="bestand-section">
+    <div class="bestand-header">
+      <div class="section-title" style="margin:0;flex:1">Vorhandene Immobilien <span style="color:var(--muted);font-size:9px;margin-left:8px">(optional – fließen als Startpunkt in die Simulation)</span></div>
+    </div>
+
+    <div class="bestand-item header-row">
+      <span></span>
+      <span>Bezeichnung</span>
+      <span>Kaufpreis / akt. Wert</span>
+      <span>Restschuld</span>
+      <span>Kaltmiete/Mo.</span>
+      <span>Zinssatz</span>
+      <span>Hausgeld/Mo.</span>
+      <span></span>
+    </div>
+
+    <div class="bestand-list" id="bestand-list"></div>
+
+    <button class="btn-add" onclick="addBestand()">
+      <span style="font-size:16px;line-height:1">+</span> Immobilie hinzufügen
+    </button>
+
+    <div class="bestand-summary" id="bestand-summary" style="display:none"></div>
+  </div>
+
+  <div class="layout">
+
+    <!-- LEFT: PARAMS -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-dot"></div>
+        <div class="panel-head-title">Parameter</div>
+      </div>
+      <div class="panel-body">
+
+        <div class="param-group">
+          <div class="param-label"><span class="param-name">Kaufpreis je Wohnung</span><span class="param-value" id="v-preis">250.000 €</span></div>
+          <input type="range" min="100000" max="600000" step="10000" value="250000" id="preis" oninput="calc()">
+        </div>
+
+        <div class="param-group">
+          <div class="param-label"><span class="param-name">Nettomietrendite (auf Kaufpreis)</span><span class="param-value" id="v-rendite">5,0%</span></div>
+          <input type="range" min="3" max="8" step="0.1" value="5" id="rendite" oninput="calc()">
+        </div>
+
+        <div class="param-group">
+          <div class="param-label"><span class="param-name">Zinssatz Fremdkapital</span><span class="param-value" id="v-zins">3,8%</span></div>
+          <input type="range" min="2" max="6" step="0.1" value="3.8" id="zins" oninput="calc()">
+        </div>
+
+        <div class="param-group">
+          <div class="param-label"><span class="param-name">Anfangstilgung (minimal halten)</span><span class="param-value" id="v-tilgung">1,0%</span></div>
+          <input type="range" min="0.5" max="3" step="0.1" value="1" id="tilgung" oninput="calc()">
+        </div>
+
+        <div class="param-group">
+          <div class="param-label"><span class="param-name">Wertzuwachs p.a.</span><span class="param-value" id="v-wertz">1,5%</span></div>
+          <input type="range" min="0.5" max="3" step="0.1" value="1.5" id="wertzuwachs" oninput="calc()">
+        </div>
+
+        <div class="param-group">
+          <div class="param-label"><span class="param-name">Bewirtschaftungskosten (% Bruttomiete)</span><span class="param-value" id="v-kosten">20%</span></div>
+          <input type="range" min="10" max="35" step="1" value="20" id="kosten" oninput="calc()">
+        </div>
+
+        <div class="param-group">
+          <div class="param-label"><span class="param-name">Grenzsteuersatz</span><span class="param-value" id="v-steuer">42%</span></div>
+          <input type="range" min="30" max="45" step="1" value="42" id="steuer" oninput="calc()">
+        </div>
+
+      </div>
+    </div>
+
+    <!-- RIGHT: OUTPUT -->
+    <div>
+
+      <!-- METRICS -->
+      <div class="metrics-grid" id="metrics-grid"></div>
+
+      <!-- FLOW -->
+      <div class="section-title">Cashflow-Mechanismus (je Wohnung)</div>
+      <div class="flow" id="flow"></div>
+
+      <!-- CHART -->
+      <div class="panel" style="margin-bottom: 24px;">
+        <div class="panel-head">
+          <div class="panel-dot" style="background:var(--accent2)"></div>
+          <div class="panel-head-title">Portfolio-Wert vs. Eigenkapital (20 Jahre)</div>
+        </div>
+        <div class="panel-body">
+          <div class="chart-legend">
+            <div class="cl-item"><div class="cl-dot" style="background:#4af0c8"></div>Portfoliowert</div>
+            <div class="cl-item"><div class="cl-dot" style="background:#c8f04a"></div>Eigenkapital</div>
+            <div class="cl-item"><div class="cl-dot" style="background:#f0c84a;opacity:.6"></div>Schulden</div>
+          </div>
+          <div style="position:relative;width:100%;height:260px">
+            <canvas id="chart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- TABLE -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-dot" style="background:var(--amber)"></div>
+          <div class="panel-head-title">Portfolio-Wachstum & Break-Even-Pfad</div>
+        </div>
+        <div class="panel-body" style="padding:0">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Jahr</th>
+                  <th># Whg.</th>
+                  <th>EK gespart</th>
+                  <th>Neu</th>
+                  <th>CF/Monat</th>
+                  <th>Zinsvorteil</th>
+                  <th>Port.-Wert</th>
+                  <th>Eigenkapital</th>
+                </tr>
+              </thead>
+              <tbody id="table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="footnote">
+    <strong>Modell-Annahmen:</strong> 20% EK / 80% FK-Finanzierung je Objekt. Überschüsse werden vollständig in Bausparvertrag geführt (EK für nächste Immobilie). Break-Even = Jahr, ab dem der jährliche Portfolio-Cashflow inkl. Steuervorteil ausreicht, eine weitere Wohnung p.a. zu finanzieren. Kein Anspruch auf steuerliche oder rechtliche Beratung. Modell dient zur Veranschaulichung des Hebeleffekts.
+  </div>
+
+</div>
+
+<script>
+let chart;
+let bestandItems = [];
+let bestandCounter = 0;
+
+function fmt(n, dec=0) {
+  if (n === undefined || n === null || isNaN(n)) return '–';
+  if (Math.abs(n) >= 1e6) return (n/1e6).toFixed(2).replace('.',',') + ' Mio. €';
+  return new Intl.NumberFormat('de-DE', { maximumFractionDigits: dec, minimumFractionDigits: dec }).format(n) + ' €';
+}
+function fmtMo(n) {
+  return new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(Math.round(n)) + ' €/mo';
+}
+function pct(n) { return n.toFixed(1).replace('.',',') + '%'; }
+function parseNum(s) { return parseFloat((s||'').replace(/\./g,'').replace(',','.')) || 0; }
+
+// ── BESTAND ──────────────────────────────────────────────────────────────────
+
+function addBestand(defaults={}) {
+  const id = ++bestandCounter;
+  bestandItems.push(id);
+  const list = document.getElementById('bestand-list');
+  const row = document.createElement('div');
+  row.className = 'bestand-item';
+  row.id = 'bi-' + id;
+  row.innerHTML = `
+    <div class="bestand-num">${bestandItems.length}</div>
+    <div class="bi-field">
+      <div class="bi-label">Bezeichnung</div>
+      <input class="bi-input" type="text" placeholder="z.B. Wohnung Bremen" value="${defaults.name||''}" oninput="calc()">
+    </div>
+    <div class="bi-field">
+      <div class="bi-label">Akt. Wert (€)</div>
+      <input class="bi-input" type="text" inputmode="numeric" placeholder="280.000" value="${defaults.wert||''}" oninput="calc()">
+    </div>
+    <div class="bi-field">
+      <div class="bi-label">Restschuld (€)</div>
+      <input class="bi-input" type="text" inputmode="numeric" placeholder="180.000" value="${defaults.schuld||''}" oninput="calc()">
+    </div>
+    <div class="bi-field">
+      <div class="bi-label">Kaltmiete/Mo. (€)</div>
+      <input class="bi-input" type="text" inputmode="numeric" placeholder="900" value="${defaults.miete||''}" oninput="calc()">
+    </div>
+    <div class="bi-field">
+      <div class="bi-label">Zinssatz (%)</div>
+      <input class="bi-input" type="text" inputmode="decimal" placeholder="3,5" value="${defaults.zins||''}" oninput="calc()">
+    </div>
+    <div class="bi-field">
+      <div class="bi-label">Hausgeld/Mo. (€)</div>
+      <input class="bi-input" type="text" inputmode="numeric" placeholder="250" value="${defaults.hausgeld||''}" title="Nicht umlagefähiger Anteil (ca. 30-40% des Hausgeldes)" oninput="calc()">
+    </div>
+    <button class="btn-remove" title="Entfernen" onclick="removeBestand(${id})">×</button>
+  `;
+  list.appendChild(row);
+  renumberBestand();
+  calc();
+}
+
+function removeBestand(id) {
+  bestandItems = bestandItems.filter(i => i !== id);
+  const el = document.getElementById('bi-' + id);
+  if (el) el.remove();
+  renumberBestand();
+  calc();
+}
+
+function renumberBestand() {
+  document.querySelectorAll('.bestand-num').forEach((el, i) => { el.textContent = i+1; });
+}
+
+function getBestandData() {
+  return bestandItems.map(id => {
+    const row = document.getElementById('bi-' + id);
+    if (!row) return null;
+    const inputs = row.querySelectorAll('.bi-input');
+    return {
+      name:     inputs[0].value || ('Wohnung ' + id),
+      wert:     parseNum(inputs[1].value),
+      schuld:   parseNum(inputs[2].value),
+      miete:    parseNum(inputs[3].value) * 12,
+      zins:     parseFloat((inputs[4].value||'').replace(',','.')) / 100 || 0,
+      hausgeld: parseNum(inputs[5].value) * 12,
+    };
+  }).filter(Boolean);
+}
+
+// ── MAIN CALC ────────────────────────────────────────────────────────────────
+
+function calc() {
+  const kaufpreis   = +document.getElementById('preis').value;
+  const mietrendite = +document.getElementById('rendite').value / 100;
+  const zinssatz    = +document.getElementById('zins').value / 100;
+  const tilgungRate = +document.getElementById('tilgung').value / 100;
+  const wachstum    = +document.getElementById('wertzuwachs').value / 100;
+  const kostenQuote = +document.getElementById('kosten').value / 100;
+  const grenzsteuer = +document.getElementById('steuer').value / 100;
+
+  document.getElementById('v-preis').textContent   = new Intl.NumberFormat('de-DE').format(kaufpreis) + ' €';
+  document.getElementById('v-rendite').textContent = pct(mietrendite*100);
+  document.getElementById('v-zins').textContent    = pct(zinssatz*100);
+  document.getElementById('v-tilgung').textContent = pct(tilgungRate*100);
+  document.getElementById('v-wertz').textContent   = pct(wachstum*100);
+  document.getElementById('v-kosten').textContent  = pct(kostenQuote*100);
+  document.getElementById('v-steuer').textContent  = pct(grenzsteuer*100);
+
+  const ek = kaufpreis * 0.20;
+  const fk = kaufpreis * 0.80;
+  const bruttomiete   = kaufpreis * mietrendite;
+  const bewirtsch     = bruttomiete * kostenQuote;
+  const nettomiete    = bruttomiete - bewirtsch;
+  const zinsen        = fk * zinssatz;
+  const tilgung       = fk * tilgungRate;
+  const annuitaet     = zinsen + tilgung;
+  const cashflow      = nettomiete - annuitaet;
+  const steuervorteil = zinsen * grenzsteuer;
+  const cfNachSteuer  = cashflow + steuervorteil;
+
+  // Bestand summary
+  const bestandData = getBestandData();
+  const bsDiv = document.getElementById('bestand-summary');
+  if (bestandData.length > 0) {
+    const bsGesWert  = bestandData.reduce((s,b) => s + b.wert, 0);
+    const bsGesSchuld = bestandData.reduce((s,b) => s + b.schuld, 0);
+    const bsGesEK    = bsGesWert - bsGesSchuld;
+    const bsGesMiete = bestandData.reduce((s,b) => s + b.miete, 0);
+    const bsGesCF    = bestandData.reduce((s,b) => {
+      const zm = b.schuld * b.zins;
+      const til = b.schuld * tilgungRate;
+      const nm = b.miete * (1 - kostenQuote) - b.hausgeld;
+      return s + (nm - zm - til) + zm * grenzsteuer;
+    }, 0);
+    bsDiv.style.display = 'grid';
+    bsDiv.innerHTML = [
+      { label: 'Bestand Gesamtwert', val: fmt(bsGesWert), cls: '' },
+      { label: 'Bestand Eigenkapital', val: fmt(bsGesEK), cls: 'green' },
+      { label: 'Bestand Kaltmiete p.a.', val: fmt(bsGesMiete), cls: '' },
+      { label: 'Bestand CF/Monat', val: fmtMo(bsGesCF/12), cls: bsGesCF>=0?'green':'red' },
+    ].map(m => `<div class="metric-card"><div class="mc-label">${m.label}</div><div class="mc-value ${m.cls}">${m.val}</div></div>`).join('');
+  } else {
+    bsDiv.style.display = 'none';
+  }
+
+  // Metrics (neue Wohnung)
+  const metrics = [
+    { label: 'EK je neue Wohnung', val: fmt(ek), cls: '' },
+    { label: 'Netto-CF / Monat', val: fmtMo(cashflow/12), cls: cashflow>=0?'green':'red' },
+    { label: 'Steuervorteil p.a.', val: fmt(steuervorteil), cls: 'amber' },
+    { label: 'CF nach Steuervorteil', val: fmtMo(cfNachSteuer/12), cls: cfNachSteuer>=0?'green':'amber' },
+  ];
+  document.getElementById('metrics-grid').innerHTML = metrics.map(m =>
+    `<div class="metric-card${m.cls==='green'?' accent':m.cls==='red'?' danger':''}">
+      <div class="mc-label">${m.label}</div>
+      <div class="mc-value ${m.cls}">${m.val}</div>
+    </div>`
+  ).join('');
+
+  // Flow
+  const flowSteps = [
+    { title: '01 — EK / FK', lines: [
+        {t:`EK: <strong>${fmt(ek)}</strong>`},
+        {t:`FK: <strong>${fmt(fk)}</strong>`},
+        {t:`Kaufpreis: <strong>${fmt(kaufpreis)}</strong>`}
+      ], hi: false },
+    { title: '02 — Mieteinnahmen', lines: [
+        {t:`Brutto: <strong>${fmtMo(bruttomiete/12)}</strong>`},
+        {t:`Bewirtsch.: <strong>-${fmtMo(bewirtsch/12)}</strong>`, cls:'neg'},
+        {t:`Netto: <strong>${fmtMo(nettomiete/12)}</strong>`}
+      ], hi: false },
+    { title: '03 — Kreditdienst', lines: [
+        {t:`Zins: <strong>${fmtMo(zinsen/12)}</strong>`, cls:'neg'},
+        {t:`Tilgung: <strong>${fmtMo(tilgung/12)}</strong>`, cls:'neg'},
+        {t:`Annuität: <strong>${fmtMo(annuitaet/12)}</strong>`}
+      ], hi: false },
+    { title: '04 — Überschuss', lines: [
+        {t:`CF: <strong>${fmtMo(cashflow/12)}</strong>`, cls: cashflow>=0?'pos':'neg'},
+        {t:`Steuervort.: <strong>+${fmtMo(steuervorteil/12)}</strong>`, cls:'pos'},
+        {t:`Gesamt: <strong>${fmtMo(cfNachSteuer/12)}</strong>`, cls: cfNachSteuer>=0?'acc':'neg'}
+      ], hi: true },
+    { title: '05 — Bausparvertrag', lines: [
+        {t:`Ziel-EK:`},
+        {t:`<strong>${fmt(ek)}</strong>`, cls:'acc'},
+        {t:`→ nächste Wohnung`}
+      ], hi: false },
+  ];
+  document.getElementById('flow').innerHTML = flowSteps.map(s =>
+    `<div class="flow-step${s.hi?' hi':''}">
+      <div class="fs-title">${s.title}</div>
+      ${s.lines.map(l=>`<div class="fs-line${l.cls?' '+l.cls:''}">${l.t}</div>`).join('')}
+    </div>`
+  ).join('');
+
+  // ── SIMULATION ──────────────────────────────────────────────────────────────
+  // Seed portfolio from bestand
+  let portfolio = bestandData.map(b => ({
+    value: b.wert,
+    debt:  b.schuld,
+    annualRent: b.miete,
+    hausgeld: b.hausgeld,
+    zins: b.zins,
+    isBestand: true,
+    name: b.name,
+  }));
+
+  // Initial saved cash: EK freed by bestand (Marktwert - Restschuld above 20% threshold)
+  // i.e. free equity not yet committed → goes to savings pool
+  let savedCash = bestandData.reduce((s, b) => {
+    const freeEK = Math.max(0, (b.wert - b.schuld) - b.wert * 0.20);
+    return s + freeEK;
+  }, 0);
+  // If no bestand, seed with first EK
+  if (bestandData.length === 0) savedCash = ek;
+
+  const years = 20;
+  let beYear = null;
+  let tableRows = '';
+  const labels = [], dataValue = [], dataEK = [], dataDebt = [];
+
+  for (let y = 1; y <= years; y++) {
+    let newBought = 0;
+    while (savedCash >= ek) {
+      portfolio.push({ value: kaufpreis, debt: fk, annualRent: kaufpreis * mietrendite, zins: zinssatz, isBestand: false });
+      savedCash -= ek;
+      newBought++;
+    }
+
+    let totalCF = 0, totalZinsen = 0, totalValue = 0, totalDebt = 0;
+    for (let p of portfolio) {
+      p.value *= (1 + wachstum);
+      p.debt  -= p.debt * tilgungRate;
+      const pZins  = p.debt * p.zins;
+      const pTil   = p.debt * tilgungRate;
+      const pNetto = (p.isBestand ? p.annualRent * (p.value / (p.value/(1+wachstum))) : p.value * mietrendite) * (1 - kostenQuote);
+      // for bestand use their actual rent (inflation-adjusted by value growth proxy)
+      const pNettoCorrected = p.isBestand
+        ? (p.annualRent * (1 + wachstum) ** (y - 1) * (1 - kostenQuote))
+        : p.value * mietrendite * (1 - kostenQuote);
+      const pAnn   = pZins + pTil;
+      const pCF    = pNettoCorrected - pAnn + pZins * grenzsteuer;
+      totalCF     += pCF;
+      totalZinsen += pZins;
+      totalValue  += p.value;
+      totalDebt   += p.debt;
+    }
+    // recalc bestand rent correctly (don't double-apply growth)
+    // simpler: recalculate properly
+    totalCF = 0; totalZinsen = 0;
+    for (let p of portfolio) {
+      const pZins = p.debt * p.zins;
+      const pTil  = p.debt * tilgungRate;
+      let rent;
+      if (p.isBestand) {
+        // rent grows with value appreciation; deduct non-umlagefähiges Hausgeld
+        rent = p.annualRent * Math.pow(1 + wachstum, y) * (1 - kostenQuote) - (p.hausgeld || 0);
+      } else {
+        rent = p.value * mietrendite * (1 - kostenQuote);
+      }
+      const cf = rent - pZins - pTil + pZins * grenzsteuer;
+      totalCF     += cf;
+      totalZinsen += pZins;
+    }
+
+    const totalEK = totalValue - totalDebt;
+    savedCash += Math.max(0, totalCF);
+
+    const annualSurplus = totalCF;
+    if (annualSurplus >= ek && !beYear) beYear = y;
+    const isBreakEven = y === beYear;
+
+    const cfColor = totalCF >= 0 ? '#4af0c8' : '#f04a4a';
+    const bestandCount = portfolio.filter(p => p.isBestand).length;
+    const neuCount     = portfolio.filter(p => !p.isBestand).length;
+    const countLabel   = bestandCount > 0
+      ? `${portfolio.length} <span style="color:var(--muted);font-size:10px">(${bestandCount}B+${neuCount}N)</span>`
+      : portfolio.length;
+
+    tableRows += `<tr${isBreakEven?' class="be"':''}>
+      <td>Jahr ${y}${isBreakEven?'<span class="be-badge">BREAK-EVEN</span>':''}</td>
+      <td>${countLabel}</td>
+      <td>${fmt(savedCash)}</td>
+      <td>${newBought > 0 ? '+'+newBought : '–'}</td>
+      <td style="color:${cfColor}">${fmtMo(totalCF/12)}</td>
+      <td style="color:#f0c84a">${fmt(totalZinsen * grenzsteuer)}</td>
+      <td>${fmt(totalValue)}</td>
+      <td>${fmt(totalEK)}</td>
+    </tr>`;
+
+    labels.push('J' + y);
+    dataValue.push(Math.round(totalValue));
+    dataEK.push(Math.round(totalEK));
+    dataDebt.push(Math.round(totalDebt));
+  }
+
+  document.getElementById('table-body').innerHTML = tableRows;
+
+  if (chart) chart.destroy();
+  chart = new Chart(document.getElementById('chart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Portfoliowert', data: dataValue, borderColor: '#4af0c8', backgroundColor: 'rgba(74,240,200,.06)', fill: true, tension: .4, pointRadius: 2, borderWidth: 1.5 },
+        { label: 'Eigenkapital',  data: dataEK,    borderColor: '#c8f04a', backgroundColor: 'rgba(200,240,74,.06)', fill: true, tension: .4, pointRadius: 2, borderWidth: 1.5 },
+        { label: 'Schulden',      data: dataDebt,  borderColor: '#f0c84a', backgroundColor: 'transparent',          fill: false, tension: .4, pointRadius: 2, borderWidth: 1, borderDash: [4,3] },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1b16',
+          borderColor: 'rgba(255,255,255,.1)',
+          borderWidth: 1,
+          titleColor: '#7a7869',
+          bodyColor: '#e8e5d8',
+          titleFont: { family: "'DM Mono', monospace", size: 10 },
+          bodyFont:  { family: "'DM Mono', monospace", size: 11 },
+          callbacks: {
+            label: ctx => {
+              const v = ctx.raw;
+              const s = v >= 1e6 ? (v/1e6).toFixed(2).replace('.',',') + ' Mio. €' : new Intl.NumberFormat('de-DE').format(v) + ' €';
+              return ' ' + ctx.dataset.label + ': ' + s;
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          ticks: { color: '#7a7869', font: { family: "'DM Mono', monospace", size: 10 },
+            callback: v => v >= 1e6 ? (v/1e6).toFixed(1).replace('.',',') + ' Mio.' : (v/1e3).toFixed(0) + 'k'
+          },
+          grid: { color: 'rgba(255,255,255,.04)' },
+          border: { color: 'transparent' }
+        },
+        x: {
+          ticks: { color: '#7a7869', font: { family: "'DM Mono', monospace", size: 10 } },
+          grid: { display: false },
+          border: { color: 'rgba(255,255,255,.07)' }
+        }
+      }
+    }
+  });
+}
+
+calc();
+</script>
+</body>
+</html>
